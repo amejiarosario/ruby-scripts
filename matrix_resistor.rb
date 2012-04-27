@@ -13,6 +13,27 @@ DEBUG_LIMIT = 3
 TRACE = true
 DEBUG = true
 
+class String
+	def csv_spliter(separator)
+		# check for parenthesis
+		# omit commas inside the parenthesis
+		buffer = ""
+		array = []
+		self.each_char |c|
+			case c
+			when '('
+				while 
+			when separator[0]
+				buffer += c
+			end
+			if c != separator[0]
+				buffer += c
+			end
+		end
+		#self.split(separator)
+	end
+end
+
 def csv_2_hash (file) 
 	hash = nil
 	header = nil
@@ -63,8 +84,8 @@ def main
 			match = INSERT_PATTERN.match line
 			if match
 				table = match[1]
-				column_names = match[2].split(",") unless match[2].nil?
-				values = match[3].split(",") unless match[3].nil?
+				column_names = match[2].csv_spliter(",") unless match[2].nil?
+				values = match[3].csv_spliter(",") unless match[3].nil?
 				
 				# make a hash t with the key => value of the insert statement
 				t={}
