@@ -1,10 +1,17 @@
+# encoding: UTF-8
+
+require 'set'
+require 'pp'
+
 INSERT_PATTERN = /insert\W+into\W+(\w+)\(([^)]*)\)\W*values\W*\(([^;]*)\)/i
 
 @data_path = "matrix"
 @data_file = "#{@data_path}/matrix_resistors.csv"
 @query_file = "#{@data_path}/matrix_resistors.sql"
 @output_file = "#{@data_path}/matrix_resistors_processed.sql"
-DEBUG_LIMIT = 5
+DEBUG_LIMIT = 3
+TRACE = true
+DEBUG = true
 
 def csv_2_hash (file) 
 	hash = nil
@@ -21,23 +28,28 @@ def csv_2_hash (file)
 				end
 			else
 				line.split(",").each.with_index do |r,i|
-					hash[header[i]] << r.to_s.strip.gsub(/[^a-zA-Z0-9\-\ %\.]/,"") # TODO refine
+					hash[header[i]] << r.to_s.strip #.gsub(/[\x80-\xff]/,"") # TODO refine
 				end
 			end
 			times += 1
-			break if times == DEBUG_LIMIT # TODO 
+			break if DEBUG and times > DEBUG_LIMIT # TODO 
 		end
 	end
 	hash
 end
 
-def main
+def hash_2_sqlinsert (hash)
+	"INSERT INTO #{hash[:name]} (#{hash.keys[1..-1].map{|k| k.to_s}.join(", ")}) VALUES (#{hash.values[1..-1].map{|v| v.to_s}.join(", ")});\n"
+end
 
+def main
+	set = Set.new
 	hash = csv_2_hash @data_file
 	
-	p "==============="
-	puts hash.inspect
-	p "==============="
+	p "===============" if DEBUG
+	#puts hash.inspect if DEBUG
+	pp hash if DEBUG
+	p "===============" if DEBUG
 	
 	path = @query_file
 	puts "reading... #{path}"
@@ -60,25 +72,20 @@ def main
 				column_names.each.with_index do |c,i|
 					t[c] = values[i].to_s.strip
 				end
-				puts "\n>> original: #{t.inspect}"
+				puts "\n>> original: #{t.inspect}" if DEBUG
 				
 				#
 				# replace the values if the hash of values have a column for it.
 				#
-				i = 0
-				begin
+				hash.values[0].count.times do |i|
 					t.each_key do |k|
 						unless hash[k].nil?
-							t[k] = hash[k][i] || t[k]
+							t[k] = "'#{hash[k][i]}'" if hash[k][i]
+							#puts "<#{k}> updated." if TRACE
 						end
 					end
-					puts "\n>> changed: #{t.inspect}\n<<<<"
-					i+=1
-				end while hash[k] && hash[k][i]
-				
-				
-				doit.times do |i|
-					t.each_key {|k| t[k] = hash[k][i] || t[k] }
+					puts "\n>> changed: #{t.inspect}\n<<<<" if DEBUG
+					set.add hash_2_sqlinsert(t)
 				end
 				#
 				#
@@ -90,17 +97,16 @@ def main
 				puts "DIDN'T match #{line}"
 			end
 
-			
 			#puts "table=#{table}\ncolumns=#{column_names}\nvalues=#{values}\n\n"
-			break if times ==  DEBUG_LIMIT
+			break if DEBUG and times >  DEBUG_LIMIT
 		end
-=begin		
+#=begin		
 		File.open(@output_file,'w') do |out|
-			s = "INSERT INTO #{table}(#{column_names.join(",")} VALUES(#{values.join("','")}))\n"
-			puts s
-			out.write(s)
+			set.each do |v|
+				out.write v
+			end
 		end
-=end
+#=end
 	end
 end
 
