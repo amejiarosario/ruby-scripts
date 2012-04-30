@@ -3,16 +3,18 @@
 require 'set'
 require 'pp'
 
-INSERT_PATTERN = /insert\W+into\W+(\w+)\(([^)]*)\)\W*values\W*\(([^;]*)\)/i
+INSERT_PATTERN = /insert\W+into\W+(\w+)\W*\(([^)]*)\)\W*values\W*\(([^;]*)\)/i
 
 @data_path = "matrix"
-@data_file = "#{@data_path}/matrix_resistors.csv"
+@data_file = "#{@data_path}/ps_values.csv"
+#@data_file = "#{@data_path}/matrix_resistors.csv"
 @query_file = "#{@data_path}/matrix_resistors.sql"
 @output_file = "#{@data_path}/matrix_resistors_processed.sql"
+@changes_file = "#{@data_path}/matrix_resistors_changes.sql"
 
 DEBUG_LIMIT = 3
-TRACE = true
-DEBUG = true
+TRACE = false
+DEBUG = false
 
 class String
 	def csv_spliter(separator)
@@ -50,6 +52,11 @@ class String
 		end
 		array
 	end
+	
+	def no_invisibles
+		self.gsub(/[^\ -}]/, '')
+	end
+	
 end
 
 def csv_2_hash (file) 
@@ -58,6 +65,7 @@ def csv_2_hash (file)
 	times = 0
 	File.open(file) do |f|
 		while line = f.gets do
+			line = line.no_invisibles
 			if hash.nil?
 				#header
 				hash = {}
@@ -67,7 +75,7 @@ def csv_2_hash (file)
 				end
 			else
 				line.split(",").each.with_index do |r,i|
-					hash[header[i]] << r.to_s.strip #.gsub(/[\x80-\xff]/,"") # TODO refine
+					hash[header[i]] << r.to_s.strip
 				end
 			end
 			times += 1
@@ -78,7 +86,7 @@ def csv_2_hash (file)
 end
 
 def hash_2_sqlinsert (hash)
-	"INSERT INTO #{hash[:name]} (#{hash.keys[1..-1].map{|k| k.to_s}.join(", ")}) VALUES (#{hash.values[1..-1].map{|v| v.to_s}.join(", ")});\n"
+	"INSERT INTO #{hash[:table_name]} (#{hash.keys[1..-1].map{|k| k.to_s}.join(", ")}) VALUES (#{hash.values[1..-1].map{|v| v.to_s}.join(", ")});\n"
 end
 
 def main
@@ -93,34 +101,43 @@ def main
 	path = @query_file
 	puts "reading... #{path}"
 	
+	File.open(@changes_file,'w') do |changes|
 	File.open(path) do |f|
+		
+		changes.write "== List of changes ==\n"
 		# Get SQL stmt
 		times = 0
 		while line = f.gets do
 			#puts line
+			line = line.no_invisibles
 			table = column_names = values = ""
 			match = INSERT_PATTERN.match line
+			
 			if match
 				table = match[1]
-				column_names = match[2].csv_spliter(",") unless match[2].nil?
-				values = match[3].csv_spliter(",") unless match[3].nil?
+				column_names = match[2].split(",") unless match[2].nil?
+				values = match[3].csv_spliter(",") unless match[3].nil? # special spliter for commans inside parenthesis
 				
 				# make a hash t with the key => value of the insert statement
 				t={}
-				t[:name] = table
+				t[:table_name] = table
 				column_names.each.with_index do |c,i|
-					t[c] = values[i].to_s.strip
+					t[c] = values[i].to_s.strip.no_invisibles
 				end
-				puts "\n>> original: #{t.inspect}" if DEBUG
+				puts "\n>> original: #{t.inspect}" if TRACE
+				changes.write "> Original:\n\tSQL: #{line}\n\tValues: #{t.inspect}\n"
 				
+				replaced_columns = Set.new
 				#
 				# replace the values if the hash of values have a column for it.
 				#
 				hash.values[0].count.times do |i|
 					t.each_key do |k|
 						unless hash[k].nil?
-							t[k] = "'#{hash[k][i]}'" if hash[k][i]
-							#puts "<#{k}> updated." if TRACE
+							t[k] = "'#{hash[k][i].no_invisibles}'" if hash[k][i]
+							puts "<#{k}> updated to <#{t[k]}>" if TRACE
+							#changes.write "<#{k}> updated to <#{t[k]}>\n"
+							replaced_columns.add(k)
 						end
 					end
 					puts "\n>> changed: #{t.inspect}\n<<<<" if DEBUG
@@ -130,23 +147,28 @@ def main
 				#
 				#
 				
+				changes.write "\tColumns changed: #{replaced_columns.to_a.join(", ")} \n" 
+				
 				times += 1
 				
 			else
-				puts "DIDN'T match #{line}"
+				puts "\n*** NOT processed: \n#{line}"
+				changes.write "\n*** NOT processed: \n#{line}\n"
 			end
 
 			#puts "table=#{table}\ncolumns=#{column_names}\nvalues=#{values}\n\n"
 			break if DEBUG and times >  DEBUG_LIMIT
 		end
-#=begin		
-		File.open(@output_file,'w') do |out|
-			set.each do |v|
-				out.write v
-			end
-		end
-#=end
 	end
+	end
+	
+	# Output file
+	File.open(@output_file,'w') do |out|
+		set.each do |v|
+			out.write v
+		end
+	end
+	
 end
 
 
