@@ -12,9 +12,13 @@ INSERT_PATTERN = /insert\W+into\W+(\w+)\W*\(([^)]*)\)\W*values\W*\(([^;]*)\)/i
 @output_file = "#{@data_path}/matrix_resistors_processed.sql"
 @changes_file = "#{@data_path}/matrix_resistors_changes.sql"
 
-DEBUG_LIMIT = 3
-TRACE = false
-DEBUG = false
+############
+DEBUG = true
+############
+
+TRACE = true && DEBUG
+QUERY_LIMIT = 1000
+VALUES_LIMIT = 3
 
 class String
 	def csv_spliter(separator)
@@ -54,8 +58,10 @@ class String
 	end
 	
 	def no_invisibles
-		self.gsub(/[^\ -}]/, '')
+		self.gsub(/[^\ -}]/, '').strip.chomp
 	end
+	
+	
 	
 end
 
@@ -70,16 +76,19 @@ def csv_2_hash (file)
 				#header
 				hash = {}
 				header = line.split(",")
+				header.map!{|v| v.no_invisibles }
+				
 				header.each do |h|
+					puts "`#{h}` => `#{h}`" if DEBUG
 					hash[h] = []
 				end
 			else
 				line.split(",").each.with_index do |r,i|
-					hash[header[i]] << r.to_s.strip
+					hash[header[i]] << r.no_invisibles
 				end
 			end
 			times += 1
-			break if DEBUG and times > DEBUG_LIMIT # TODO 
+			break if DEBUG and times > VALUES_LIMIT # TODO 
 		end
 	end
 	hash
@@ -120,8 +129,10 @@ def main
 				# make a hash t with the key => value of the insert statement
 				t={}
 				t[:table_name] = table
+				column_names.map!{|v| v.no_invisibles }
+				
 				column_names.each.with_index do |c,i|
-					t[c] = values[i].to_s.strip.no_invisibles
+					t[c] = values[i].no_invisibles
 				end
 				puts "\n>> original: #{t.inspect}" if TRACE
 				changes.write "> Original:\n\tSQL: #{line}\n\tValues: #{t.inspect}\n"
@@ -141,6 +152,7 @@ def main
 						end
 					end
 					puts "\n>> changed: #{t.inspect}\n<<<<" if DEBUG
+					changes.write "\n>> changed: #{t.inspect}\n<<<<" if DEBUG
 					queries_set.add "#{hash_2_sqlinsert(t).no_invisibles} -- case 1"
 				end
 				#
@@ -155,17 +167,27 @@ def main
 				hash.values[0].count.times do |i|
 					line = line.gsub(/ALTEST1/i, hash['INV_ITEM_ID'][i])
 					line = line.gsub(/VICHP/i, hash['BUSINESS_UNIT'][i])
-					line = line.gsub(/CLASSCODE-916/, hash['INV_ITEM_ID'][i])
+					line = line.gsub(/CLASSCODE-916/i, hash['INV_ITEM_ID'][i])
 					queries_set.add "#{line.no_invisibles} -- case 2"
 				end
 				changes.write "\tValues replaced: 'ALTEST1' => `INV_ITEM_ID`, 'VICHP' => `BUSINESS_UNIT`, 'CLASSCODE-916' => `INV_ITEM_ID` \n"
+			elsif line =~ /update/i
+				# TODO validate
+				changes.write "> Original:\n\tSQL: #{line}\n\tValues: n/a\n"
+				hash.values[0].count.times do |i|
+					line = line.gsub(/ALTEST1/i, hash['INV_ITEM_ID'][i])
+					line = line.gsub(/VICHP/i, hash['BUSINESS_UNIT'][i])
+					line = line.gsub(/CLASSCODE-916/i, hash['INV_ITEM_ID'][i])
+					queries_set.add "#{line.no_invisibles} -- case 2"
+				end
+				changes.write "\tValues replaced: 'ALTEST1' => `INV_ITEM_ID`, 'VICHP' => `BUSINESS_UNIT`, 'CLASSCODE-916' => `INV_ITEM_ID` \n"					
 			else
-				puts "\n*** NOT processed: \n#{line}"
+				puts "\n*** NOT processed: \n#{line}" 
 				changes.write "\n*** NOT processed: \n#{line}\n\n"
 			end
-
+			
 			#puts "table=#{table}\ncolumns=#{column_names}\nvalues=#{values}\n\n"
-			break if DEBUG and times >  DEBUG_LIMIT
+			break if DEBUG and times > QUERY_LIMIT
 		end
 	end
 	end
