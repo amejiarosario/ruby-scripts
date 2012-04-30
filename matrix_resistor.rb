@@ -9,6 +9,7 @@ INSERT_PATTERN = /insert\W+into\W+(\w+)\(([^)]*)\)\W*values\W*\(([^;]*)\)/i
 @data_file = "#{@data_path}/matrix_resistors.csv"
 @query_file = "#{@data_path}/matrix_resistors.sql"
 @output_file = "#{@data_path}/matrix_resistors_processed.sql"
+
 DEBUG_LIMIT = 3
 TRACE = true
 DEBUG = true
@@ -19,18 +20,35 @@ class String
 		# omit commas inside the parenthesis
 		buffer = ""
 		array = []
-		self.each_char |c|
-			case c
-			when '('
-				while 
-			when separator[0]
-				buffer += c
+		parenthesis = 0
+		
+		it = self.each_char.to_enum
+		begin
+			while c = it.next
+				case c
+				when '('
+					#parenthesis+=1
+					while c
+						buffer += c
+						parenthesis +=1 if c == '('
+						parenthesis -= 1 if c == ')'
+						if parenthesis == 0 
+							break
+						else
+							c = it.next
+						end
+					end
+				when separator[0]
+					array << buffer
+					buffer = ""
+				else
+					buffer += c
+				end
 			end
-			if c != separator[0]
-				buffer += c
-			end
+		rescue StopIteration
+			array << buffer
 		end
-		#self.split(separator)
+		array
 	end
 end
 
