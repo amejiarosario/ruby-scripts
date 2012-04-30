@@ -90,7 +90,7 @@ def hash_2_sqlinsert (hash)
 end
 
 def main
-	set = Set.new
+	queries_set = Set.new
 	hash = csv_2_hash @data_file
 	
 	p "===============" if DEBUG
@@ -98,11 +98,10 @@ def main
 	pp hash if DEBUG
 	p "===============" if DEBUG
 	
-	path = @query_file
-	puts "reading... #{path}"
+	puts "reading... #{@query_file}"
 	
 	File.open(@changes_file,'w') do |changes|
-	File.open(path) do |f|
+	File.open(@query_file) do |f|
 		
 		changes.write "== List of changes ==\n"
 		# Get SQL stmt
@@ -128,6 +127,7 @@ def main
 				changes.write "> Original:\n\tSQL: #{line}\n\tValues: #{t.inspect}\n"
 				
 				replaced_columns = Set.new
+				
 				#
 				# replace the values if the hash of values have a column for it.
 				#
@@ -141,7 +141,7 @@ def main
 						end
 					end
 					puts "\n>> changed: #{t.inspect}\n<<<<" if DEBUG
-					set.add hash_2_sqlinsert(t)
+					queries_set.add "#{hash_2_sqlinsert(t).no_invisibles} -- case 1"
 				end
 				#
 				#
@@ -150,10 +150,18 @@ def main
 				changes.write "\tColumns changed: #{replaced_columns.to_a.join(", ")} \n" 
 				
 				times += 1
-				
+			elsif line =~ /select/i && line =~ /insert/i
+				changes.write "> Original:\n\tSQL: #{line}\n\tValues: n/a\n"
+				hash.values[0].count.times do |i|
+					line = line.gsub(/ALTEST1/i, hash['INV_ITEM_ID'][i])
+					line = line.gsub(/VICHP/i, hash['BUSINESS_UNIT'][i])
+					line = line.gsub(/CLASSCODE-916/, hash['INV_ITEM_ID'][i])
+					queries_set.add "#{line.no_invisibles} -- case 2"
+				end
+				changes.write "\tValues replaced: 'ALTEST1' => `INV_ITEM_ID`, 'VICHP' => `BUSINESS_UNIT`, 'CLASSCODE-916' => `INV_ITEM_ID` \n"
 			else
 				puts "\n*** NOT processed: \n#{line}"
-				changes.write "\n*** NOT processed: \n#{line}\n"
+				changes.write "\n*** NOT processed: \n#{line}\n\n"
 			end
 
 			#puts "table=#{table}\ncolumns=#{column_names}\nvalues=#{values}\n\n"
@@ -164,8 +172,8 @@ def main
 	
 	# Output file
 	File.open(@output_file,'w') do |out|
-		set.each do |v|
-			out.write v
+		queries_set.each do |v|
+			out.write "#{v}\n"
 		end
 	end
 	
