@@ -71,11 +71,11 @@ def csv_2_hash (file)
 	times = 0
 	File.open(file) do |f|
 		while line = f.gets do
-			line = line.no_invisibles
+			line = line.no_invisibles.split(",")
 			if hash.nil?
 				#header
 				hash = {}
-				header = line.split(",")
+				header = line
 				header.map!{|v| v.no_invisibles }
 				
 				header.each do |h|
@@ -83,7 +83,7 @@ def csv_2_hash (file)
 					hash[h] = []
 				end
 			else
-				line.split(",").each.with_index do |r,i|
+				line.each.with_index do |r,i|
 					hash[header[i]] << r.no_invisibles
 				end
 			end
