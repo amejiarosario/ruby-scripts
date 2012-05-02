@@ -32,7 +32,7 @@ public class MatrixResistor {
 		String dataFile = "../../matrix/ps_values.csv";
 		String queryFile = "../../matrix/matrix_resistors.sql";
 		
-		HashMap hashValues = convertCSV2Hash(dataFile); 
+		HashMap<String, ArrayList<String>> hashValues = convertCSV2Hash(dataFile); 
 		Set<String> queriesSet = new HashSet<String>();
 		
 		Scanner scan = new Scanner(new File(queryFile));
@@ -76,20 +76,44 @@ public class MatrixResistor {
 		return null;
 	}
 
-	public static String processInsert(HashMap hashValues, String line, Matcher m) {
+	public static String processInsert(HashMap<String, ArrayList<String>> hashValues, String line, Matcher m) {
 		// convert the SQL to a hash
 		HashMap<String,String> sqlHash = convertSqlInsertToHash(line, m); 
+		
 		// replace the SQLhash with the hashValues if they exits.
-		for(int i=0; i<hashValues.size(); i++){
-			
+		StringBuilder sb = new StringBuilder("");
+		
+		for(int i=0; i < hashValues.size(); i++){
+			for(String key : sqlHash.keySet()){
+				if (hashValues.containsKey(key)){
+					sqlHash.put(key, hashValues.get(key).get(i) );
+				} else {
+					
+				}
+			}
+			sb.append(convertHash2sql(sqlHash));
+			// TODO here
 		}
 		return null;
 	}
 
+	private static String convertHash2sql(HashMap<String, String> sqlHash) {
+		StringBuilder columns = new StringBuilder("");
+		StringBuilder values = new StringBuilder("");
+		for(String key : sqlHash.keySet()){
+			columns.append(key+", ");
+			values.append(columns + ", ");
+		}
+		
+		// TODO here
+			
+		return null;
+	}
+
 	public static HashMap<String, String> convertSqlInsertToHash(String line, Matcher m) {
-		String tablename;
-		String[] columns;
-		String[] values;
+		String tablename = "";
+		String[] columns = null;
+		String[] values = null;
 		
 		while(m.find()){
 			tablename = m.group(1);
@@ -97,8 +121,12 @@ public class MatrixResistor {
 			values = splitCsvWithFunctions(m.group(3));
 		}
 		
-		
-		return null;
+		HashMap<String,String> hash = new HashMap<String,String>();
+		hash.put("tablename", tablename);
+		for(int i=0; i<values.length; i++){
+			hash.put(columns[i],values[i]);
+		}
+		return hash;
 	}
 
 	public static String[] splitCsvWithFunctions(String string) {
@@ -143,12 +171,12 @@ public class MatrixResistor {
 		String[] a = new String[al.size()];
 		for(int i=0; i<al.size(); i++){
 			a[i] = al.get(i);
-			System.out.println(a[i]);
+			//System.out.println(a[i]);
 		}
 		return a;
 	}
 
-	public static HashMap convertCSV2Hash(String dataFilePath) throws FileNotFoundException {
+	public static HashMap<String, ArrayList<String>> convertCSV2Hash(String dataFilePath) throws FileNotFoundException {
 		Scanner scanner = new Scanner(new File(dataFilePath));
 		HashMap<String, ArrayList<String>> hash = new HashMap<String, ArrayList<String>>();
 		String[] header = null;

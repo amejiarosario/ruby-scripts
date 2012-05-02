@@ -79,7 +79,7 @@ def csv_2_hash (file)
 				header.map!{|v| v.no_invisibles }
 				
 				header.each do |h|
-					puts "`#{h}` => `#{h}`" if DEBUG
+					puts "'#{h}' => '#{h}'" if DEBUG
 					hash[h] = []
 				end
 			else
@@ -100,7 +100,16 @@ end
 
 def main
 	queries_set = Set.new
+	
+	# Convert the big table with all the key-values into a hash
 	hash = csv_2_hash @data_file
+	
+	# Static values (hardcoded):
+	staticHash = {}
+	staticHash['APPROVAL_OPRID'] = "QUIJANOA"
+	staticHash['REF_ROUTING_ITEM'] = "CLASSCODE-916"
+	
+	
 	
 	p "===============" if DEBUG
 	#puts hash.inspect if DEBUG
@@ -110,7 +119,9 @@ def main
 	puts "reading... #{@query_file}"
 	
 	File.open(@changes_file,'w') do |changes|
-	File.open(@query_file) do |f|
+	
+	
+	File.open(@query_file) do |f| # Open the file will all the SQL queries 
 		
 		changes.write "== List of changes ==\n"
 		# Get SQL stmt
@@ -119,6 +130,7 @@ def main
 			#puts line
 			line = line.no_invisibles
 			table = column_names = values = ""
+			
 			match = INSERT_PATTERN.match line
 			
 			if match
@@ -126,7 +138,7 @@ def main
 				column_names = match[2].split(",") unless match[2].nil?
 				values = match[3].csv_spliter(",") unless match[3].nil? # special spliter for commans inside parenthesis
 				
-				# make a hash t with the key => value of the insert statement
+				# make a hash t with the key => value of the SQL insert statement
 				t={}
 				t[:table_name] = table
 				column_names.map!{|v| v.no_invisibles }
@@ -137,19 +149,30 @@ def main
 				puts "\n>> original: #{t.inspect}" if TRACE
 				changes.write "> Original:\n\tSQL: #{line}\n\tValues: #{t.inspect}\n"
 				
-				replaced_columns = Set.new
+				# Hold all the processed SQl (generated)
+				generated_sql = Set.new
 				
 				#
 				# replace the values if the hash of values have a column for it.
 				#
 				hash.values[0].count.times do |i|
+					
 					t.each_key do |k|
 						unless hash[k].nil?
 							t[k] = "'#{hash[k][i].no_invisibles}'" if hash[k][i]
 							puts "<#{k}> updated to <#{t[k]}>" if TRACE
 							#changes.write "<#{k}> updated to <#{t[k]}>\n"
-							replaced_columns.add(k)
+							generated_sql.add(k)
 						end
+						
+						# replace statics ones.
+						unless staticHash[k].nil?
+							t[k] = "'#{staticHash[k].no_invisibles}'"
+							puts "<#{k}> updated to <#{t[k]}>" if TRACE
+							#changes.write "<#{k}> updated to <#{t[k]}>\n"
+						end
+						
+						generated_sql.add(k) unless staticHash[k].nil? && hash[k].nil?
 					end
 					puts "\n>> changed: #{t.inspect}\n<<<<" if DEBUG
 					changes.write "\n>> changed: #{t.inspect}\n<<<<" if DEBUG
@@ -159,7 +182,7 @@ def main
 				#
 				#
 				
-				changes.write "\tColumns changed: #{replaced_columns.to_a.join(", ")} \n" 
+				changes.write "\tColumns changed: #{generated_sql.to_a.join(", ")} \n" 
 				
 				times += 1
 			elsif line =~ /select/i && line =~ /insert/i
@@ -177,7 +200,8 @@ def main
 				hash.values[0].count.times do |i|
 					line = line.gsub(/ALTEST1/i, hash['INV_ITEM_ID'][i])
 					line = line.gsub(/VICHP/i, hash['BUSINESS_UNIT'][i])
-					line = line.gsub(/CLASSCODE-916/i, hash['INV_ITEM_ID'][i])
+					line = line.gsub(/CLASSCODE-916/i, hash['INV_ITEM_ID'][i]) #TODO review
+					line = line.gsub(/APPROVAL_OPRID/i, )
 					queries_set.add "#{line.no_invisibles} -- case 2"
 				end
 				changes.write "\tValues replaced: 'ALTEST1' => `INV_ITEM_ID`, 'VICHP' => `BUSINESS_UNIT`, 'CLASSCODE-916' => `INV_ITEM_ID` \n"					
@@ -200,6 +224,5 @@ def main
 	end
 	
 end
-
 
 main
