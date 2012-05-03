@@ -31,7 +31,6 @@ public class ReplaceValueTable {
 			sqlFilePath = path+ "matrix_resistors_placeholders.sql";
 		}
 		
-		
 		OutputStreamWriter out = null;
 		BufferedWriter log = null;
 		
@@ -47,19 +46,19 @@ public class ReplaceValueTable {
 				out.write("\n");
 			}
 		} 
-//		catch (Exception ex){
-//			System.err.println(ex.getMessage());
-//			ex.printStackTrace();
-//			if(log!=null){
-//				log.write(ex.getMessage());
-//				log.write("\n");
-//			}
-//		} 
+		catch (Exception ex){
+			System.err.println(ex.getMessage());
+			ex.printStackTrace();
+			if(log!=null){
+				log.write(ex.getMessage());
+				log.write("\n");
+			}
+		} 
 		finally {
 			out.close();
 			log.close();
 		}
-		
+		System.out.println("done");
 	}
 	
 	public static Matcher getMatcher(String str){
@@ -71,10 +70,11 @@ public class ReplaceValueTable {
 		Scanner scanner = new Scanner(new File(dataFilePath));
 		HashMap<String, ArrayList<String>> hash = new HashMap<String, ArrayList<String>>();
 		String[] header = null;
-		int times = 2; 
+		int times = 0; 
 		while(scanner.hasNextLine()){
-			String line = scanner.nextLine().trim();
-			String[] csvLine = csvSplit(sanitize(line));
+			times++;
+			String line = sanitize(scanner.nextLine());
+			String[] csvLine = csvSplit(line);
 			for(int i=0; i<csvLine.length; i++)
 				csvLine[i] = csvLine[i].trim(); 
 			// header
@@ -93,9 +93,11 @@ public class ReplaceValueTable {
 				}
 			}
 			
-			times--;
-			if(times < 0) break; // TODO debug
+			//times--;
+			//if(times < 0) break; // TODO debug
 		}
+		
+		System.out.println("tiems="+times);
 		
 		return hash;
 	}
@@ -137,7 +139,8 @@ public class ReplaceValueTable {
 				sqls.add(sql);
 				continue;
 			}
-			//System.out.println();
+			
+			System.out.println("dataHash size = "+dataHash.get("MANUFACTURER_ITEM_ID").size());
 			for(int i=0; i<  dataHash.get("MANUFACTURER_ITEM_ID").size() ; i++){
 				for(String key: ArrayList2String(columnsToReplace)){
 					if (dataHash.containsKey(key)){
