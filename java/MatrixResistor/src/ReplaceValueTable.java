@@ -20,15 +20,15 @@ public class ReplaceValueTable {
 		String path = "../../replace_value_table/"; 
 		String sqlFilePath = "";
 		String dataFilePath = "";
-		String outFilePath = path+"out_results.sql";
+		String outFilePath = path+"out_replaced_values.sql";
 		String logFilePath = path+"out_changes.log";
 		
 		if(args.length == 2){
 			System.out.println(args[0]);
 			System.out.println(args[1]);
 		} else {
-			dataFilePath = path+"ps_values.csv";
-			sqlFilePath = path+ "matrix_resistors_placeholders.sql";
+			dataFilePath = path+"in_placeholders_values.csv";
+			sqlFilePath = path+ "in_placeholders.sql";
 		}
 		
 		OutputStreamWriter out = null;
