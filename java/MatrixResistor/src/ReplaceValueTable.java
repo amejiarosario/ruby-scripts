@@ -125,29 +125,36 @@ public class ReplaceValueTable {
 		Set<String> sqls = new HashSet<String>();
 		Set<String> notFoundColumns = new HashSet<String>();
 		
+		System.out.println("dataHash size = "+dataHash.get("MANUFACTURER_ITEM_ID").size());
+		
 		while(sqlScan.hasNextLine()){
 			String sql = sqlScan.nextLine().trim();
 			
 			Matcher m = getMatcher(sql);
 			ArrayList<String> columnsToReplace = new ArrayList<String>();
-			
+
+			// identify columns to replace
 			while(m.find()){
 				columnsToReplace.add(m.group(1));
-				//System.out.println(column);
 			}
+			
+			// if not columns to replace move to the next.
 			if(columnsToReplace.size() < 1) {
 				sqls.add(sql);
 				continue;
 			}
 			
-			System.out.println("dataHash size = "+dataHash.get("MANUFACTURER_ITEM_ID").size());
+			//------------------------
+			
 			for(int i=0; i<  dataHash.get("MANUFACTURER_ITEM_ID").size() ; i++){
+				String sql_replaced = sql;
+			
 				for(String key: ArrayList2String(columnsToReplace)){
 					if (dataHash.containsKey(key)){
 						if (i < dataHash.get(key).size()){
-							sql = sql.replaceAll("\\{\\{"+key+"\\}\\}", dataHash.get(key).get(i));
+							sql_replaced = sql_replaced.replaceAll("\\{\\{"+key+"\\}\\}", dataHash.get(key).get(i));
 						} else {
-							sql = sql.replaceAll("\\{\\{"+key+"\\}\\}", "");
+							sql_replaced = sql_replaced.replaceAll("\\{\\{"+key+"\\}\\}", "");
 							log.write("WARNING: column <"+key+"> is empty in the row "+i+"\n");
 							System.err.println("WARNING: column <"+key+"> is empty in the row "+i);
 						}
@@ -157,8 +164,11 @@ public class ReplaceValueTable {
 						notFoundColumns.add(key);
 					}
 				}
-				sqls.add(sql);
+				sqls.add(sql_replaced);
 			}
+			
+			
+			
 		}
 		
 		if(notFoundColumns.size()>0){
