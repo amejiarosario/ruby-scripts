@@ -48,7 +48,8 @@ public class ReplaceValueTable {
 				out.write(sql);
 				out.write("\n");
 			}
-			log.write("Items processed: "+ sqls.size()+"\n");
+			log.write("\n== Total Items generated: "+ sqls.size()+" ==\n");
+			System.out.println("\n== Total Items generated: "+ sqls.size()+" ==\n");
 		} 
 		catch (Exception ex){
 			System.err.println(ex.getMessage());
@@ -63,7 +64,7 @@ public class ReplaceValueTable {
 			out.close();
 			log.close();
 		}
-		System.out.println("done");
+		//System.out.println("done");
 	}
 	
 	public static Matcher getMatcher(String str){
@@ -102,7 +103,7 @@ public class ReplaceValueTable {
 			//if(times < 0) break; // TODO debug
 		}
 		
-		System.out.println("count="+times);
+		//System.out.println("count="+times);
 		
 		return hash;
 	}
@@ -133,7 +134,7 @@ public class ReplaceValueTable {
 		
 		int hashSize = dataHash.entrySet().iterator().next().getValue().size();
 		
-		System.out.println("dataHash size = " + hashSize);
+		//System.out.println("dataHash size = " + hashSize);
 		
 		while(sqlScan.hasNextLine()){
 			String sql = sqlScan.nextLine().trim();
@@ -152,37 +153,47 @@ public class ReplaceValueTable {
 				continue;
 			}
 			
-			//------------------------
+			//------------------------ Do Replacement
+			/*
+			 * For each row in input_placeholders, the placeholders {{.+}} are
+			 * substituted by each of the values of the rows in the column of 
+			 * the input_placeholder_values, which column name match the placeholder
+			 * name.   
+			 */
 			
-			for(int i=0; i<  hashSize ; i++){
+			log.write("\tProcessing placeholder: " + sql);
+			log.write("\r\n");
+			log.write("\t\tColumns to replace: " + columnsToReplace.toString());
+			log.write("\r\n");
+			
+			int rowsGenerated = 0;
+			for (int i = 0; i < hashSize; i++) {
 				String sql_replaced = sql;
-				/*
-				 * For each row in input_placeholders, the placeholders {{.+}} are
-				 * substituted by each of the values of the rows in the column of 
-				 * the input_placeholder_values, which column name match the placeholder
-				 * name.   
-				 */
-				for(String key: ArrayList2String(columnsToReplace)){
-					if (dataHash.containsKey(key)){
-						if (i < dataHash.get(key).size()){
-							sql_replaced = sql_replaced.replaceAll("\\{\\{"+key+"\\}\\}", dataHash.get(key).get(i));
+				for (String key : ArrayList2String(columnsToReplace)) {
+					if (dataHash.containsKey(key)) {
+						if (i < dataHash.get(key).size()) {
+							sql_replaced = sql_replaced.replaceAll("\\{\\{"
+									+ key + "\\}\\}", dataHash.get(key).get(i));
 						} else {
-							sql_replaced = sql_replaced.replaceAll("\\{\\{"+key+"\\}\\}", "");
-							log.write("WARNING: column <"+key+"> is empty in the row "+i+"\n");
-							System.err.println("WARNING: column <"+key+"> is empty in the row "+i);
+							sql_replaced = sql_replaced.replaceAll("\\{\\{" + key + "\\}\\}", "");
+							log.write("WARNING: column <" + key	+ "> is empty in the row " + i + "\n");
+							System.err.println("WARNING: column <" + key + "> is empty in the row " + i);
 						}
 					} else {
-						System.err.println("key = <"+key+"> doesn't exists.");
-						//log.write("column <"+key+"> doesn't exists in "+dataFilePath+"\n");
+						System.err.println("key = <" + key + "> doesn't exists.");
+						// log.write("column <"+key+"> doesn't exists in "+dataFilePath+"\n");
 						notFoundColumns.add(key);
 					}
 				}
 				sqls.add(sql_replaced);
+				rowsGenerated++;
 			}
+			log.write("\t\tRows generated: " + rowsGenerated);
+			log.write("\r\n");
+			//-------------------- End Replacement
 			
 			
-			
-		}
+		} // while(sqlScan.hasNextLine()) - reads each line of input_placeholders 
 		
 		if(notFoundColumns.size()>0){
 			log.write("The following columns were not found in "+dataFilePath+" file, please add them:\n");

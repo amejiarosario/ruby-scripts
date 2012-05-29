@@ -8,7 +8,10 @@ INSERT_PATTERN = /insert\W+into\W+(\w+)\W*\(([^)]*)\)\W*values\W*\(([^;]*)\)/i
 @data_path = "matrix"
 @data_file = "#{@data_path}/ps_values.csv"
 #@data_file = "#{@data_path}/matrix_resistors.csv"
-@query_file = "#{@data_path}/matrix_resistors.sql"
+
+#@query_file = "#{@data_path}/matrix_resistors.sql"
+@query_file = "#{@data_path}/test1.sql"
+
 @output_file = "#{@data_path}/matrix_resistors_processed.sql"
 @changes_file = "#{@data_path}/matrix_resistors_changes.sql"
 
@@ -146,7 +149,8 @@ def main
 				column_names.each.with_index do |c,i|
 					t[c] = values[i].no_invisibles
 				end
-				puts "\n>> original: #{t.inspect}" if TRACE
+				puts "\n>> original: " if TRACE
+				pp t if TRACE
 				changes.write "> Original:\n\tSQL: #{line}\n\tValues: #{t.inspect}\n"
 				
 				# Hold all the processed SQl (generated)
