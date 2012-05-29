@@ -17,18 +17,21 @@ public class ReplaceValueTable {
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws IOException {
-		String path = "../../replace_value_table/"; 
+		System.out.println("Value Replacer v.1.0.1");
+		System.out.println("Adrian Mejia 5/29/2012");
+		//String path = "../../replace_value_table/"; 
+		String path = System.getProperty("user.dir")+ File.separator; 
 		String sqlFilePath = "";
 		String dataFilePath = "";
-		String outFilePath = path+"out_replaced_values.sql";
-		String logFilePath = path+"out_changes.log";
+		String outFilePath = path+"output_replaced_values.sql";
+		String logFilePath = path+"output_changes.log";
 		
 		if(args.length == 2){
 			System.out.println(args[0]);
 			System.out.println(args[1]);
 		} else {
-			dataFilePath = path+"in_placeholders_values.csv";
-			sqlFilePath = path+ "in_placeholders.sql";
+			dataFilePath = path+"input_placeholders_values.csv";
+			sqlFilePath = path+ "input_placeholders.sql";
 		}
 		
 		OutputStreamWriter out = null;
@@ -45,11 +48,13 @@ public class ReplaceValueTable {
 				out.write(sql);
 				out.write("\n");
 			}
+			log.write("Items processed: "+ sqls.size()+"\n");
 		} 
 		catch (Exception ex){
 			System.err.println(ex.getMessage());
 			ex.printStackTrace();
-			if(log!=null){
+			if(log != null){
+				log.write("Error:\n");
 				log.write(ex.getMessage());
 				log.write("\n");
 			}
@@ -97,7 +102,7 @@ public class ReplaceValueTable {
 			//if(times < 0) break; // TODO debug
 		}
 		
-		System.out.println("tiems="+times);
+		System.out.println("count="+times);
 		
 		return hash;
 	}
@@ -116,6 +121,7 @@ public class ReplaceValueTable {
 	public static String sanitize(String str){
 		return str.trim().trim().replaceAll("[^\\\\ -\\}]", "");
 	}
+	
 
 	private static Set<String> replacePlaceHolders(String sqlFilePath,
 			String dataFilePath, String outFilePath, BufferedWriter log) throws IOException {
@@ -125,7 +131,9 @@ public class ReplaceValueTable {
 		Set<String> sqls = new HashSet<String>();
 		Set<String> notFoundColumns = new HashSet<String>();
 		
-		System.out.println("dataHash size = "+dataHash.get("MANUFACTURER_ITEM_ID").size());
+		int hashSize = dataHash.entrySet().iterator().next().getValue().size();
+		
+		System.out.println("dataHash size = " + hashSize);
 		
 		while(sqlScan.hasNextLine()){
 			String sql = sqlScan.nextLine().trim();
@@ -146,9 +154,14 @@ public class ReplaceValueTable {
 			
 			//------------------------
 			
-			for(int i=0; i<  dataHash.get("MANUFACTURER_ITEM_ID").size() ; i++){
+			for(int i=0; i<  hashSize ; i++){
 				String sql_replaced = sql;
-			
+				/*
+				 * For each row in input_placeholders, the placeholders {{.+}} are
+				 * substituted by each of the values of the rows in the column of 
+				 * the input_placeholder_values, which column name match the placeholder
+				 * name.   
+				 */
 				for(String key: ArrayList2String(columnsToReplace)){
 					if (dataHash.containsKey(key)){
 						if (i < dataHash.get(key).size()){
